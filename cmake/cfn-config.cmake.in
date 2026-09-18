@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(NOT TARGET cfn::cfn)
+  include("${CMAKE_CURRENT_LIST_DIR}/cfn-targets.cmake")
+endif()
+
+check_required_components(cfn)

@@ -1,0 +1,51 @@
+# Build outputs
+/build/
+/build-*/
+/out/
+/install/
+/_build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.idb
+*.gcda
+*.gcno
+*.gcov
+compile_commands.json
+
+# Sanitizer / analysis artefacts
+*.su
+*.sarif
+
+# Local scratch
+/tmp/
+/scratch/
+*.log
+*.tmp
+*.bak
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Crash dumps. The core patterns are anchored or numeric so they can never
+# match a source directory that happens to be called "core".
+/core
+core.[0-9]*
+*.dmp
