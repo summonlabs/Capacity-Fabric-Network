@@ -239,7 +239,7 @@ error rather than a hang.
 
 ## Quick start
 
-`@cpp
+```cpp
 #include <cfn/cfn.hpp>
 
 cfn::FabricOptions options;                 // in-memory; no durable store
@@ -257,7 +257,7 @@ fabric.register_model(model);
 
 auto snapshot = fabric.compute(model.id);   // generation-bound, exactly closing
 auto explanation = cfn::explain(*snapshot, cfn::Limits());
-`@
+```
 
 The resource catalog must precede a demand shape, because a shape's endpoints are
 resolved against it. `examples/quickstart.cpp` is the complete, runnable version.
@@ -270,12 +270,12 @@ on the installed package through `find_package(cfn CONFIG REQUIRED)` only.
 
 Requirements: CMake 3.20 or newer, a C++20 compiler. No third-party dependencies.
 
-`@sh
+```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 cmake --install build --prefix install
-`@
+```
 
 | Option | Default | Effect |
 | --- | --- | --- |
@@ -289,10 +289,10 @@ cmake --install build --prefix install
 
 Installed package:
 
-`@cmake
+```cmake
 find_package(cfn 1.0 CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE cfn::cfn)
-`@
+```
 
 ---
 
@@ -334,11 +334,11 @@ synthetic in both the text and JSON renderings.
 
 ## Tests
 
-`@sh
+```sh
 ctest --test-dir build --output-on-failure      # 15 suites
 ./build/tests/cfn-tests --list                  # every case
 ./build/tests/cfn-tests --filter=property.      # one suite
-`@
+```
 
 | Suite | Covers |
 | --- | --- |
