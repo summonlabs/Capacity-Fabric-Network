@@ -215,8 +215,15 @@ Outcome<std::pair<Socket, std::uint16_t>> listen_tcp(const std::string& host, st
   Socket socket;
   socket.reset(from_native(*created));
   int reuse = 1;
+#if defined(_WIN32)
+  // SO_REUSEADDR on Windows lets a second socket bind a port that is still
+  // listening; exclusive use makes that second bind fail instead.
+  (void)::setsockopt(to_native(socket.native()), SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                     reinterpret_cast<const char*>(&reuse), static_cast<int>(sizeof(reuse)));
+#else
   (void)::setsockopt(to_native(socket.native()), SOL_SOCKET, SO_REUSEADDR,
                      reinterpret_cast<const char*>(&reuse), static_cast<int>(sizeof(reuse)));
+#endif
   if (::bind(to_native(socket.native()), reinterpret_cast<const sockaddr*>(&*address),
              static_cast<int>(sizeof(sockaddr_in))) != 0) {
     return Error(ErrorCode::TransportError, "failed to bind the listening socket", host);

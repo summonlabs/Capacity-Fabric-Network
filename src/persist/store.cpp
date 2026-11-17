@@ -3,9 +3,11 @@
 #include "cfn/persist/store.hpp"
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <string>
 #include <system_error>
+#include <thread>
 
 #include "cfn/core/checked.hpp"
 #include "cfn/persist/crc32c.hpp"
@@ -933,7 +935,31 @@ Outcome<void> CapacityStore::compact() {
   std::filesystem::remove(temporary, remove_error);
   CFN_RETURN_IF_ERROR(write_whole_file(temporary, file, options_.durability_barrier));
   std::error_code rename_error;
-  std::filesystem::rename(temporary, target, rename_error);
+  // While a reader has the state file open (an inspection, an antivirus or
+  // indexing scan) the replacing rename fails on Windows until the reader
+  // closes the file, so it is retried for a bounded time (about 2 s) instead
+  // of failing the compaction. A directory in the way is not transient and
+  // fails at once.
+  for (int attempt = 0;; ++attempt) {
+    std::filesystem::rename(temporary, target, rename_error);
+    if (!rename_error) {
+      break;
+    }
+#if defined(_WIN32)
+    // ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION and ERROR_LOCK_VIOLATION.
+    std::error_code kind;
+    const bool transient = rename_error.category() == std::system_category() &&
+                           (rename_error.value() == 5 || rename_error.value() == 32 ||
+                            rename_error.value() == 33) &&
+                           !std::filesystem::is_directory(target, kind);
+#else
+    const bool transient = false;
+#endif
+    if (!transient || attempt >= 100) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
   if (rename_error) {
     std::filesystem::remove(temporary, remove_error);
     return Error(ErrorCode::IoError, "failed to publish the compacted state", target.string());

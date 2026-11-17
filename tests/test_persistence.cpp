@@ -3,9 +3,11 @@
 #include "test_fixtures.hpp"
 #include "test_support.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "cfn/cfn.hpp"
@@ -451,4 +453,40 @@ CFN_TEST(persistence, store_rejects_an_empty_directory_option) {
   SystemClock clock;
   RecoveryReport report;
   CFN_REQUIRE_ERROR(cfn_ctx, CapacityStore::open(options, clock, report), ErrorCode::InvalidArgument);
+}
+
+CFN_TEST(persistence, compaction_waits_for_a_reader_to_close) {
+  cfn::test::TempDirectory directory("cfn-reader");
+  OpenStore opener(directory.path());
+  bool reader_opened = false;
+  bool compacted = false;
+  {
+    const auto store = opener.open();
+    CFN_REQUIRE_OK(cfn_ctx, store);
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->put_policy(probe_policy()));
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->compact());
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->put_model(probe_model("model-before-reader")));
+    {
+      // Another tool reading the store (an inspection, a scan) holds the state
+      // file open while compaction replaces it, and closes it shortly after.
+      std::ifstream reader(directory.path() / "state.bin", std::ios::binary);
+      reader_opened = reader.is_open();
+      auto& durable = **store;
+      std::thread writer([&durable, &compacted] { compacted = static_cast<bool>(durable.compact()); });
+      std::this_thread::sleep_for(std::chrono::milliseconds(300));
+      reader.close();
+      writer.join();
+    }
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->put_model(probe_model("model-after-compaction")));
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->close());
+  }
+  CFN_CHECK(reader_opened);
+  // The compaction is not lost because a reader had the state file open for a moment.
+  CFN_CHECK(compacted);
+  {
+    const auto store = opener.open();
+    CFN_REQUIRE_OK(cfn_ctx, store);
+    CFN_CHECK_EQ((*store)->models().size(), 2U);
+    CFN_REQUIRE_OK(cfn_ctx, (*store)->close());
+  }
 }

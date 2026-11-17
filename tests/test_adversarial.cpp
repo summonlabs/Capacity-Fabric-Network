@@ -341,3 +341,11 @@ CFN_TEST(adversarial, authoritative_unknown_evidence_is_rejected) {
   fixture.resources.resources[4].capacity_evidence = EvidenceClass::Unknown;
   CFN_REQUIRE_ERROR(cfn_ctx, fixture.evaluate(), ErrorCode::NotAuthoritative);
 }
+
+CFN_TEST(adversarial, a_second_listener_cannot_take_a_listening_port) {
+  const auto first = cfn::net::listen_tcp("127.0.0.1", 0, 8);
+  CFN_REQUIRE_OK(cfn_ctx, first);
+  const auto second = cfn::net::listen_tcp("127.0.0.1", first->second, 8);
+  // Two coordinators must never share one listening port: the second bind fails.
+  CFN_CHECK(!second);
+}
